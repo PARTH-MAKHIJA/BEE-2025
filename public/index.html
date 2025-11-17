@@ -1,0 +1,215 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Hostel Management System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen p-6">
+
+  <div class="max-w-5xl mx-auto">
+    <h1 class="text-3xl font-bold text-center mb-6">🏨 Hostel Management System</h1>
+
+    <!-- Register/Login -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-10">
+
+      <!-- Register -->
+      <div class="bg-white p-6 rounded shadow">
+        <h2 class="text-xl font-semibold mb-4">Register</h2>
+        <input id="regName" placeholder="Name" class="w-full p-2 border rounded mb-3" />
+        <input id="regEmail" type="email" placeholder="Email" class="w-full p-2 border rounded mb-3" />
+        <input id="regRole" placeholder="Role (Admin/Warden/Student)" class="w-full p-2 border rounded mb-3" />
+        <input id="regPassword" type="password" placeholder="Password" class="w-full p-2 border rounded mb-3" />
+        <button id="regBtn" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 w-full">Register</button>
+        <pre id="regResult" class="mt-3 text-sm text-gray-700"></pre>
+      </div>
+
+      <!-- Login -->
+      <div class="bg-white p-6 rounded shadow">
+        <h2 class="text-xl font-semibold mb-4">Login</h2>
+        <input id="loginEmail" type="email" placeholder="Email" class="w-full p-2 border rounded mb-3" />
+        <input id="loginPassword" type="password" placeholder="Password" class="w-full p-2 border rounded mb-3" />
+        <button id="loginBtn" class="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 w-full">Login</button>
+        <pre id="loginResult" class="mt-3 text-sm text-gray-700"></pre>
+      </div>
+
+    </div>
+
+    <!-- Add Room -->
+    <div class="bg-white p-6 rounded shadow mb-6">
+      <h2 class="text-xl font-semibold mb-4">Add Room (Admin/Warden)</h2>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+        <input id="roomName" placeholder="Room Name" class="p-2 border rounded" />
+        <input id="roomCapacity" type="number" placeholder="Capacity" class="p-2 border rounded" />
+        <button id="addRoomBtn" class="bg-indigo-500 text-white px-4 py-2 rounded hover:bg-indigo-600">Add Room</button>
+      </div>
+      <pre id="roomResult" class="mt-3 text-sm text-gray-700"></pre>
+    </div>
+
+    <!-- Book Room -->
+    <div class="bg-white p-6 rounded shadow mb-6">
+      <h2 class="text-xl font-semibold mb-4">Book Room (Student)</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <!-- Removed userId input -->
+        <input id="bookRoomId" placeholder="Room ID" class="p-2 border rounded" />
+        <button id="bookBtn" class="bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600">Book Room</button>
+      </div>
+      <pre id="bookingResult" class="mt-3 text-sm text-gray-700"></pre>
+    </div>
+
+    <!-- Rooms List -->
+    <div class="bg-white p-6 rounded shadow mb-6">
+      <h2 class="text-xl font-semibold mb-4">Rooms</h2>
+      <table class="w-full table-auto border-collapse border border-gray-300">
+        <thead class="bg-gray-200">
+          <tr>
+            <th class="border border-gray-300 p-2">Room ID</th>
+            <th class="border border-gray-300 p-2">Name</th>
+            <th class="border border-gray-300 p-2">Capacity</th>
+            <th class="border border-gray-300 p-2">Booked</th>
+          </tr>
+        </thead>
+        <tbody id="roomList"></tbody>
+      </table>
+    </div>
+
+    <!-- WebSocket Notifications -->
+    <div class="bg-white p-6 rounded shadow">
+      <h2 class="text-xl font-semibold mb-4">Live Notifications</h2>
+      <pre id="wsNotifications" class="text-sm text-gray-700 h-40 overflow-auto">Connecting to websocket...</pre>
+    </div>
+  </div>
+
+  <!-- Script -->
+  <script>
+const API_BASE = "http://localhost:3000/api";
+
+function show(el, msg) {
+  document.getElementById(el).textContent =
+    typeof msg === "string" ? msg : JSON.stringify(msg, null, 2);
+}
+
+// REGISTER
+document.getElementById("regBtn").onclick = async () => {
+  const name = document.getElementById("regName").value.trim();
+  const email = document.getElementById("regEmail").value.trim();
+  let role = document.getElementById("regRole").value.trim();
+  const password = document.getElementById("regPassword").value.trim();
+
+  if (!name || !email || !role || !password)
+    return show("regResult", "❌ All fields required");
+
+  role = role.charAt(0).toUpperCase() + role.slice(1).toLowerCase();
+
+  try {
+    const res = await fetch(`${API_BASE}/users/register`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, email, role, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) return show("regResult", `❌ ${data.message || "Error"}`);
+    show("regResult", `✅ Registered: ${data.data.name}`);
+  } catch (err) {
+    show("regResult", "❌ Network error");
+  }
+};
+
+// LOGIN
+document.getElementById("loginBtn").onclick = async () => {
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value.trim();
+
+  if (!email || !password)
+    return show("loginResult", "❌ Email & Password required");
+
+  try {
+    const res = await fetch(`${API_BASE}/users/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password })
+    });
+
+    const data = await res.json();
+    if (!res.ok) return show("loginResult", `❌ ${data.message || "Error"}`);
+    show("loginResult", `✅ Login successful: ${email}`);
+
+    if (data.token) localStorage.setItem("token", data.token);
+  } catch (err) {
+    show("loginResult", "❌ Network error");
+  }
+};
+
+document.addEventListener("DOMContentLoaded", () => {
+  // ADD ROOM
+  document.getElementById("addRoomBtn").onclick = async () => {
+    const name = document.getElementById("roomName").value.trim();
+    const capacity = Number(document.getElementById("roomCapacity").value);
+    if (!name || !capacity) return show("roomResult", "❌ All fields required");
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return show("roomResult", "❌ Login first");
+
+      const res = await fetch(`${API_BASE}/rooms`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ name, capacity })
+      });
+
+      const data = await res.json();
+      if (!res.ok) return show("roomResult", `❌ ${data.message || "Error"}`);
+      show("roomResult", data);
+    } catch (err) {
+      show("roomResult", `❌ Network error: ${err.message}`);
+    }
+  };
+
+  // BOOK ROOM
+  document.getElementById("bookBtn").onclick = async () => {
+    const roomId = document.getElementById("bookRoomId").value.trim();
+    if (!roomId) return show("bookingResult", "❌ Room ID required");
+
+    try {
+      const token = localStorage.getItem("token");
+      if (!token) return show("bookingResult", "❌ Login first");
+
+      const res = await fetch(`${API_BASE}/bookings`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ roomId })
+      });
+
+      const data = await res.json();
+      if (!res.ok) return show("bookingResult", `❌ ${data.message || "Error"}`);
+      show("bookingResult", data);
+    } catch (err) {
+      show("bookingResult", `❌ Network error: ${err.message}`);
+    }
+  };
+});
+
+// WEBSOCKET
+(function initWS() {
+  try {
+    const ws = new WebSocket("ws://localhost:3000");
+    ws.onopen = () => show("wsNotifications", "🟢 WebSocket Connected ✅\n");
+    ws.onmessage = (msg) => {
+      const old = document.getElementById("wsNotifications").textContent;
+      show("wsNotifications", old + `🔔 ${msg.data}\n`);
+    };
+    ws.onerror = () => show("wsNotifications", "🔴 WebSocket Error");
+  } catch (err) {
+    show("wsNotifications", "❌ WS FAILED: " + err.message);
+  }
+})();
+  </script>
+</body>
+</html>
