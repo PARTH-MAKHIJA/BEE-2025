@@ -20,7 +20,12 @@ export const registerUser = async (req, res, next) => {
     await cache.publish("userAdded", JSON.stringify(user));
 
     // Queue add
-    await addJob({ type: "newUser", user });
+   await addJob({
+  email: user.email,
+  subject: "Welcome to Hostel Management System",
+  message: `Hi ${user.name}, your account has been created as ${user.role}.`,
+});
+
 
     // WebSocket broadcast
     broadcast("newUser", { id: user._id, name: user.name, role: user.role });
